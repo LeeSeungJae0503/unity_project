@@ -1,0 +1,76 @@
+# 워크플로우 이름
+name: Unity CI/CD for Gwangju Run
+
+# 워크플로우 트리거 (언제 실행될지)
+on:
+  push:
+    branches: [ master ] # 'master' 브랜치에 코드가 push될 때 실행
+  pull_request:
+    branches: [ master ] # 'master' 브랜치로 Pull Request가 열릴 때 실행 (테스트 용도)
+
+# 실행될 작업들 정의
+jobs:
+  # 빌드 및 배포 작업
+  build-and-deploy-android: # 작업 ID (고유해야 함)
+    name: Build & Deploy Android 🚀 # 작업 이름 (GitHub Actions UI에 표시됨)
+    runs-on: ubuntu-latest # 실행 환경 (Ubuntu 최신 버전)
+
+    steps: # 작업 내 실행 단계들
+    # 1. 소스 코드 가져오기 (Checkout)
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        lfs: true # Git LFS 사용하는 경우 true로 설정
+
+    # 2. Git LFS 파일 다운로드 (LFS 사용 시)
+    - name: Pull Git LFS files
+      run: git lfs pull
+
+    # 3. Unity 라이선스 활성화 (계정 정보 사용 방식)
+    - name: Activate Unity License
+      uses: game-ci/unity-activate@v3
+      with:
+        unityUsername: ${{ secrets.UNITY_USERNAME }}
+        unityPassword: ${{ secrets.UNITY_PASSWORD }}
+        unityAuthenticatorKey: ${{ secrets.UNITY_AUTHENTICATOR_KEY }} # 2FA 사용하는 경우 필요
+
+    # 4. Unity 프로젝트 빌드 (Android)
+    - name: Build Unity Project (Android)
+      uses: game-ci/unity-builder@v4
+      id: build-android # 빌드 결과를 참조하기 위한 ID
+      env: # 환경 변수 설정 (빌드 타겟 지정 등)
+        UNITY_TARGET_PLATFORM: Android
+      with:
+        unityVersion: 6000.0.42f1 # 사용하는 정확한 Unity 버전 명시! (예: 6000.0.42f1)
+        targetPlatform: ${{ env.UNITY_TARGET_PLATFORM }}
+        # androidAppBundle: true # AAB 파일로 빌드하려면 주석 해제 (Google Play 권장)
+        # buildName: GwangjuRun # 빌드 파일 이름 (선택 사항)
+
+    # 5. AWS 자격 증명 설정
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    # 6. 빌드 결과물(APK 또는 AAB) S3에 업로드
+    - name: Upload Android Build to S3
+      run: |
+        aws s3 cp "${{ steps.build-android.outputs.buildsPath }}/${{ env.UNITY_TARGET_PLATFORM }}/" "s3://${{ secrets.S3_BUCKET_NAME }}/builds/android/$(date +%Y-%m-%d)-${{ github.sha }}/" --recursive --acl private
+        echo "Build uploaded to s3://${{ secrets.S3_BUCKET_NAME }}/builds/android/$(date +%Y-%m-%d)-${{ github.sha }}/"
+      env:
+         AWS_REGION: ${{ secrets.AWS_REGION }} # 명시적으로 리전 전달
+
+    # 7. (선택 사항) Google Play Store 배포
+    #    - GOOGLE_PLAY_SERVICE_ACCOUNT_JSON Secret 및 사전 설정 필요
+    #    - 아래 부분을 사용하려면 주석(#)을 제거하고 설정을 맞추세요.
+    # - name: Deploy to Google Play Internal Testing
+    #   if: github.ref == 'refs/heads/master' # master 브랜치 push 시에만 실행
+    #   uses: r0adkll/upload-google-play@v1
+    #   with:
+    #     serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+    #     packageName: com.yourcompany.gwangjurun # 앱의 패키지 이름으로 변경!
+    #     releaseFiles: ${{ steps.build-android.outputs.buildsPath }}/${{ env.UNITY_TARGET_PLATFORM }}/*.aab # AAB 파일 경로 (APK인 경우 *.apk)
+    #     track: internal # 배포 트랙 (internal, alpha, beta, production)
+    #     status: completed # 배포 상태
