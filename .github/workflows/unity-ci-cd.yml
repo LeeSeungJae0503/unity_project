@@ -26,13 +26,19 @@ jobs:
     - name: Pull Git LFS files
       run: git lfs pull
 
-    # 3. Unity 라이선스 활성화 (계정 정보 사용 방식)
-    # - name: Activate Unity License
-    #   uses: game-ci/unity-activate@v3.1.1
-    #   with:
-    #     unityUsername: ${{ secrets.UNITY_USERNAME }}
-    #     unityPassword: ${{ secrets.UNITY_PASSWORD }}
-    #     unityAuthenticatorKey: ${{ secrets.UNITY_AUTHENTICATOR_KEY }} # 2FA 사용하는 경우 필요
+    # 3. Unity 라이선스 활성화 (unity-license-activate 도구 사용)
+    - name: Setup Node.js # 도구 실행을 위해 Node.js 설치
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18' # LTS 버전 권장 (또는 '20')
+
+    - name: Install unity-license-activate # 도구 설치
+      run: npm install -g unity-license-activate
+
+    - name: Activate Unity License using Web Automation # 도구 실행
+      run: unity-license-activate "${{ secrets.UNITY_EMAIL }}" "${{ secrets.UNITY_PASSWORD }}" --authenticator-key "${{ secrets.UNITY_TOTP_KEY }}"
+      # 참고: 2FA(2단계 인증)를 사용하지 않는 경우, 위 줄에서 --authenticator-key 와 그 뒤의 Secret 부분을 제거해야 할 수 있습니다.
+      #       만약 이 단계에서 오류가 발생하면 unity-license-activate 도구의 공식 문서나 GitHub 저장소를 참고하여 옵션을 조정해야 할 수 있습니다.
 
     # 4. Unity 프로젝트 빌드 (Android)
     - name: Build Unity Project (Android)
@@ -41,7 +47,7 @@ jobs:
       env: # 환경 변수 설정 (빌드 타겟 지정 등)
         UNITY_TARGET_PLATFORM: Android
       with:
-        unityVersion: 6000.0.42f1 # 사용하는 정확한 Unity 버전 명시! (예: 6000.0.42f1)
+        unityVersion: 6000.0.42f1 # 사용하는 정확한 Unity 버전 명시!
         targetPlatform: ${{ env.UNITY_TARGET_PLATFORM }}
         # androidAppBundle: true # AAB 파일로 빌드하려면 주석 해제 (Google Play 권장)
         # buildName: GwangjuRun # 빌드 파일 이름 (선택 사항)
@@ -56,9 +62,18 @@ jobs:
 
     # 6. 빌드 결과물(APK 또는 AAB) S3에 업로드
     - name: Upload Android Build to S3
+      # build-android 단계가 실패해도 S3 업로드를 시도하지 않도록 조건 추가 (선택 사항)
+      # if: success() || failure() # 필요에 따라 조건 조정
       run: |
-        aws s3 cp "${{ steps.build-android.outputs.buildsPath }}/${{ env.UNITY_TARGET_PLATFORM }}/" "s3://${{ secrets.S3_BUCKET_NAME }}/builds/android/$(date +%Y-%m-%d)-${{ github.sha }}/" --recursive --acl private
-        echo "Build uploaded to s3://${{ secrets.S3_BUCKET_NAME }}/builds/android/$(date +%Y-%m-%d)-${{ github.sha }}/"
+        # 빌드 단계에서 생성된 경로가 실제로 존재하는지 확인 (오류 방지)
+        if [ -d "${{ steps.build-android.outputs.buildsPath }}/${{ env.UNITY_TARGET_PLATFORM }}" ]; then
+          aws s3 cp "${{ steps.build-android.outputs.buildsPath }}/${{ env.UNITY_TARGET_PLATFORM }}/" "s3://${{ secrets.S3_BUCKET_NAME }}/builds/android/$(date +%Y-%m-%d)-${{ github.sha }}/" --recursive --acl private
+          echo "Build uploaded to s3://${{ secrets.S3_BUCKET_NAME }}/builds/android/$(date +%Y-%m-%d)-${{ github.sha }}/"
+        else
+          echo "Build path not found, skipping S3 upload."
+          # 빌드가 실패했음을 명시적으로 알리고 워크플로우 실패 처리 (선택 사항)
+          # exit 1
+        fi
       env:
          AWS_REGION: ${{ secrets.AWS_REGION }} # 명시적으로 리전 전달
 
@@ -66,7 +81,7 @@ jobs:
     #    - GOOGLE_PLAY_SERVICE_ACCOUNT_JSON Secret 및 사전 설정 필요
     #    - 아래 부분을 사용하려면 주석(#)을 제거하고 설정을 맞추세요.
     # - name: Deploy to Google Play Internal Testing
-    #   if: github.ref == 'refs/heads/master' # master 브랜치 push 시에만 실행
+    #   if: github.ref == 'refs/heads/master' && success() # 이전 단계 성공 시에만 실행
     #   uses: r0adkll/upload-google-play@v1
     #   with:
     #     serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
