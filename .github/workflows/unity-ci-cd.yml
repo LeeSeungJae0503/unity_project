@@ -27,12 +27,12 @@ jobs:
       run: git lfs pull
 
     # 3. Unity 라이선스 활성화 (계정 정보 사용 방식)
-    - name: Activate Unity License
-      uses: game-ci/unity-activate@v3.1.1
-      with:
-        unityUsername: ${{ secrets.UNITY_USERNAME }}
-        unityPassword: ${{ secrets.UNITY_PASSWORD }}
-        unityAuthenticatorKey: ${{ secrets.UNITY_AUTHENTICATOR_KEY }} # 2FA 사용하는 경우 필요
+    # - name: Activate Unity License
+    #   uses: game-ci/unity-activate@v3.1.1
+    #   with:
+    #     unityUsername: ${{ secrets.UNITY_USERNAME }}
+    #     unityPassword: ${{ secrets.UNITY_PASSWORD }}
+    #     unityAuthenticatorKey: ${{ secrets.UNITY_AUTHENTICATOR_KEY }} # 2FA 사용하는 경우 필요
 
     # 4. Unity 프로젝트 빌드 (Android)
     - name: Build Unity Project (Android)
