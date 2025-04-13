@@ -28,7 +28,7 @@ jobs:
 
     # 3. Unity 라이선스 활성화 (계정 정보 사용 방식)
     - name: Activate Unity License
-      uses: game-ci/unity-activate@v2
+      uses: game-ci/unity-activate@v3
       with:
         unityUsername: ${{ secrets.UNITY_USERNAME }}
         unityPassword: ${{ secrets.UNITY_PASSWORD }}
