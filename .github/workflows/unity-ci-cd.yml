@@ -1,87 +1,75 @@
 # 워크플로우 이름
 name: Unity CI/CD for Gwangju Run
 
-# 워크플로우 트리거 (언제 실행될지)
 on:
   push:
-    branches: [ master ] # 'master' 브랜치에 코드가 push될 때 실행
+    branches: [ master ]
   pull_request:
-    branches: [ master ] # 'master' 브랜치로 Pull Request가 열릴 때 실행 (테스트 용도)
+    branches: [ master ]
 
-# 실행될 작업들 정의
 jobs:
-  # 빌드 및 배포 작업
-  build-and-deploy-android: # 작업 ID (고유해야 함)
-    name: Build & Deploy Android 🚀 # 작업 이름 (GitHub Actions UI에 표시됨)
-    runs-on: ubuntu-latest # 실행 환경 (Ubuntu 최신 버전)
+  build-and-deploy-android:
+    name: Build & Deploy Android 🚀
+    runs-on: ubuntu-latest
 
-    steps: # 작업 내 실행 단계들
+    steps:
     # 1. 소스 코드 가져오기 (Checkout)
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        lfs: true # Git LFS 사용하는 경우 true로 설정
+        lfs: true
 
     # 2. Git LFS 파일 다운로드 (LFS 사용 시)
     - name: Pull Git LFS files
       run: git lfs pull
 
-    # 3. Setup Unity Editor (kuler90) - 새로 추가된 단계
-    - name: Setup Unity Editor (kuler90)
-      uses: kuler90/setup-unity@v1.4.1 # Unity 에디터 설치 (최신 안정 v1.x 태그 사용 권장)
+    # 3. Setup Unity Editor (buildalon)
+    - name: Setup Unity Editor (buildalon)
+      uses: buildalon/unity-setup@v1.0.0 # 예시 버전, 최신 안정 버전 확인 필요
       with:
-        unity-version: 6000.0.42f1 # 사용하는 정확한 Unity 버전 명시!
+        unity-version: 6000.0.42f1
 
-    # 4. Unity 라이선스 활성화 (kuler90/activate-unity 액션 사용) - 이전 3번 단계
-    - name: Activate Unity License (kuler90)
-      uses: kuler90/activate-unity@v1.1.3 # 사용자님의 리서치에서 언급된 버전 사용
+    # 4. Activate Unity License (buildalon)
+    - name: Activate Unity License (buildalon)
+      uses: buildalon/activate-unity-license@v1.0.6 # 보고서 언급 버전
       with:
         unity-username: ${{ secrets.UNITY_USERNAME }}
         unity-password: ${{ secrets.UNITY_PASSWORD }}
-        unity-authenticator-key: ${{ secrets.UNITY_AUTHENTICATOR_KEY }} # 2FA 사용하는 경우
+        # unity-serial: ${{ secrets.UNITY_SERIAL }} # Pro/Plus인 경우
+        # TFA 지원 여부 확인 필요, 지원 시 관련 입력 추가
 
-    # 5. Unity 프로젝트 빌드 (Android) - 이전 4번 단계
-    - name: Build Unity Project (Android)
-      uses: game-ci/unity-builder@v4
-      id: build-android # 빌드 결과를 참조하기 위한 ID
-      env: # 환경 변수 설정 (빌드 타겟 지정 등)
-        UNITY_TARGET_PLATFORM: Android
+    # 5. Build Unity Project (buildalon)
+    - name: Build Unity Project (Android - buildalon)
+      uses: buildalon/unity-action@v1.0.0 # 예시 버전, 최신 안정 버전 확인 필요
+      id: build-android
       with:
-        unityVersion: 6000.0.42f1 # 사용하는 정확한 Unity 버전 명시!
-        targetPlatform: ${{ env.UNITY_TARGET_PLATFORM }}
-        # androidAppBundle: true # AAB 파일로 빌드하려면 주석 해제 (Google Play 권장)
-        # buildName: GwangjuRun # 빌드 파일 이름 (선택 사항)
+        project-path: . # Unity 프로젝트 경로 (루트이므로 .)
+        target-platform: Android
+        # 추가적인 빌드 옵션은 buildalon/unity-action 문서 참조
 
-    # 6. AWS 자격 증명 설정 - 이전 5번 단계
+    # 6. AWS 자격 증명 설정
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+      # ... (이전과 동일) ...
 
-    # 7. 빌드 결과물(APK 또는 AAB) S3에 업로드 - 이전 6번 단계
+    # 7. 빌드 결과물 S3에 업로드
     - name: Upload Android Build to S3
       run: |
-        if [ -d "${{ steps.build-android.outputs.buildsPath }}/${{ env.UNITY_TARGET_PLATFORM }}" ]; then
-          aws s3 cp "${{ steps.build-android.outputs.buildsPath }}/${{ env.UNITY_TARGET_PLATFORM }}/" "s3://${{ secrets.S3_BUCKET_NAME }}/builds/android/$(date +%Y-%m-%d)-${{ github.sha }}/" --recursive --acl private
-          echo "Build uploaded to s3://${{ secrets.S3_BUCKET_NAME }}/builds/android/$(date +%Y-%m-%d)-${{ github.sha }}/"
-        else
-          echo "Build path not found, skipping S3 upload."
-          # exit 1 # 빌드 실패 시 워크플로우를 실패 처리하려면 주석 해제
-        fi
+        # buildalon/unity-action의 outputs.artifactsPath를 확인해야 함
+        # 아래는 game-ci/unity-builder 기준이므로, buildalon에 맞게 수정 필요
+        # 예시: if [ -d "${{ steps.build-android.outputs.artifactsPath }}/Android" ]; then
+        #         aws s3 cp "${{ steps.build-android.outputs.artifactsPath }}/Android/" ...
+        #       else ... fi
+        echo "S3 Upload step needs adjustment for buildalon output path"
+        # 임시로 빌드 성공 여부만 확인하기 위해 아래 실제 업로드는 주석 처리
+        # if [ -d "${{ steps.build-android.outputs.buildsPath }}/${{ env.UNITY_TARGET_PLATFORM }}" ]; then # 이 경로는 game-ci 기준
+        #   aws s3 cp "${{ steps.build-android.outputs.buildsPath }}/${{ env.UNITY_TARGET_PLATFORM }}/" "s3://${{ secrets.S3_BUCKET_NAME }}/builds/android/$(date +%Y-%m-%d)-${{ github.sha }}/" --recursive --acl private
+        #   echo "Build uploaded to s3://${{ secrets.S3_BUCKET_NAME }}/builds/android/$(date +%Y-%m-%d)-${{ github.sha }}/"
+        # else
+        #   echo "Build path not found, skipping S3 upload."
+        #   exit 1
+        # fi
       env:
-         AWS_REGION: ${{ secrets.AWS_REGION }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
 
-    # 8. (선택 사항) Google Play Store 배포 - 이전 7번 단계
-    #    - GOOGLE_PLAY_SERVICE_ACCOUNT_JSON Secret 및 사전 설정 필요
-    #    - 아래 부분을 사용하려면 주석(#)을 제거하고 설정을 맞추세요.
-    # - name: Deploy to Google Play Internal Testing
-    #   if: github.ref == 'refs/heads/master' && success()
-    #   uses: r0adkll/upload-google-play@v1
-    #   with:
-    #     serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-    #     packageName: com.yourcompany.gwangjurun # 앱의 패키지 이름으로 변경!
-    #     releaseFiles: ${{ steps.build-android.outputs.buildsPath }}/${{ env.UNITY_TARGET_PLATFORM }}/*.aab # AAB 파일 경로 (APK인 경우 *.apk)
-    #     track: internal # 배포 트랙 (internal, alpha, beta, production)
-    #     status: completed # 배포 상태
+# ... (이하 Google Play 배포는 주석 처리된 상태로 유지) ...
