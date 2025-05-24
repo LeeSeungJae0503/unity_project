@@ -1,36 +1,42 @@
 using UnityEditor;
 using UnityEngine;
-using System.Linq;
+using UnityEditor.Build.Reporting;
+using System.IO;
 
 public class BuildScript
 {
     public static void PerformBuild()
     {
-        // Build Settings에 등록된 씬 목록 자동 수집
-        string[] scenes = EditorBuildSettings.scenes
-                                .Where(s => s.enabled)
-                                .Select(s => s.path)
-                                .ToArray();
+        Debug.Log("🔧 Build started...");
+        
+        string[] scenes = new[] { "Assets/Scenes/sceneA.unity" }; // 실제 존재하는 씬 사용
+        string buildPath = "Build/LinuxBuild/UnityApp.x86_64";
+
+        // 디렉토리 미리 생성
+        Directory.CreateDirectory("Build/LinuxBuild");
 
         BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions
         {
             scenes = scenes,
-            locationPathName = "Build/LinuxBuild/UnityApp.x86_64",
+            locationPathName = buildPath,
             target = BuildTarget.StandaloneLinux64,
             options = BuildOptions.None
         };
 
         var report = BuildPipeline.BuildPlayer(buildPlayerOptions);
 
-        if (report.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded)
+        Debug.Log($"📦 Build result: {report.summary.result}");
+        Debug.Log($"📄 Total errors: {report.summary.totalErrors}");
+        Debug.Log($"⏱ Duration: {report.summary.totalTime}");
+
+        if (report.summary.result != BuildResult.Succeeded)
         {
             Debug.LogError("❌ Build Failed!");
-            EditorApplication.Exit(1); // Jenkins에 실패 전달
+            EditorApplication.Exit(1);
         }
         else
         {
             Debug.Log("✅ Build Succeeded!");
-            EditorApplication.Exit(0); // Jenkins에 성공 전달
         }
     }
 }
