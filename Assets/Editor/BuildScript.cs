@@ -8,11 +8,19 @@ public class BuildScript
         // 현재 존재하는 씬 목록 (경로는 프로젝트 루트 기준)
         string[] scenes = new[]
         {
+            "Assets/Scenes/HelloWorld.unity",
             "Assets/Scenes/SampleScene.unity",
             "Assets/Scenes/New Scene.unity",
             "Assets/Scenes/sceneB.unity",
             "Assets/Scenes/sceneA.unity"
         };
+
+        // 📦 현재 빌드에 포함될 씬 목록 출력 (디버깅용)
+        Debug.Log("📦 [Build Scenes List]");
+        foreach (var scene in scenes)
+        {
+            Debug.Log($" - {scene}");
+        }
 
         // 빌드 설정
         BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions
