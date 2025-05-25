@@ -1,48 +1,45 @@
+// Assets/Editor/BuildScript.cs
 using UnityEditor;
-using UnityEngine;
 using UnityEditor.Build.Reporting;
+using UnityEngine;
 
-public class BuildScript
+public static class BuildScript
 {
     public static void PerformBuild()
     {
-        // ✅ 씬 목록 설정 (상대 경로로 정확히 지정)
-        string[] scenes = new[]
+        // 🔖 프로젝트에 실제로 존재하는 씬 경로만 넣어 주세요
+        string[] scenes =
         {
-            "Assets/Scenes/HelloWorld.unity", // 실제 존재하는 씬으로 설정
             "Assets/Scenes/SampleScene.unity",
+            "Assets/Scenes/New Scene.unity",
+            "Assets/Scenes/sceneB.unity",
             "Assets/Scenes/sceneA.unity",
-            "Assets/Scenes/sceneB.unity"
+            "Assets/Scenes/HelloWorld.unity"
         };
 
+        /* ───────────────────────────────────────────────
+           빌드 전 확인용 : Jenkins 로그에 출력
+        ─────────────────────────────────────────────── */
         Debug.Log("📦 [Build Scenes List]");
-        foreach (var scene in scenes)
-        {
-            Debug.Log($" - {scene}");
-        }
+        foreach (var s in scenes)
+            Debug.Log($" • {s}");
 
-        // ✅ 빌드 설정
-        BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions
+        /* ─────────────────────────────────────────────── */
+
+        var opts = new BuildPlayerOptions
         {
-            scenes = scenes,
-            locationPathName = "Build/LinuxBuild/UnityApp.x86_64",
-            target = BuildTarget.StandaloneLinux64,
-            options = BuildOptions.None
+            scenes            = scenes,
+            locationPathName  = "Build/LinuxBuild/UnityApp.x86_64",
+            target            = BuildTarget.StandaloneLinux64,
+            options           = BuildOptions.None
         };
 
-        // ✅ 빌드 실행
-        BuildReport report = BuildPipeline.BuildPlayer(buildPlayerOptions);
-        BuildSummary summary = report.summary;
+        BuildReport report = BuildPipeline.BuildPlayer(opts);
 
-        Debug.Log($"🧾 Build result: {summary.result}");
-        Debug.Log($"⏱ Total build time: {summary.totalTime}");
-        Debug.Log($"📁 Output path: {summary.outputPath}");
-
-        // ✅ 빌드 실패 시 Jenkins에서 실패 처리
-        if (summary.result != BuildResult.Succeeded)
+        if (report.summary.result != BuildResult.Succeeded)
         {
             Debug.LogError("❌ Build Failed!");
-            EditorApplication.Exit(1); // Jenkins에서 실패 처리
+            EditorApplication.Exit(1);      // ➡️ Jenkins 에서 실패 처리
         }
         else
         {
