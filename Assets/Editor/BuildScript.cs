@@ -1,42 +1,34 @@
 using UnityEditor;
-using UnityEditor.Build.Reporting;
 using UnityEngine;
 
-public static class BuildScript
+public class BuildScript
 {
     public static void PerformBuild()
     {
-        string[] scenes =
+        string[] scenes = { "Assets/Scenes/MainScene.unity" };
+        string buildPath = "Build/LinuxBuild/UnityApp.x86_64";
+
+        BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions
         {
-            "Assets/Scenes/SampleScene.unity",
-            "Assets/Scenes/New Scene.unity",
-            "Assets/Scenes/sceneB.unity",
-            "Assets/Scenes/sceneA.unity",
-            "Assets/Scenes/HelloWorld.unity"
+            scenes = scenes,
+            locationPathName = buildPath,
+            target = BuildTarget.StandaloneLinux64,
+            options = BuildOptions.None
         };
 
-        Debug.Log("📦 [Build Scenes List]");
-        foreach (var s in scenes)
-            Debug.Log($" • {s}");
+        Debug.Log("🔨 Unity 빌드 시작 (Linux)...");
 
-        var opts = new BuildPlayerOptions
+        BuildReport report = BuildPipeline.BuildPlayer(buildPlayerOptions);
+        BuildSummary summary = report.summary;
+
+        if (summary.result == BuildResult.Succeeded)
         {
-            scenes           = scenes,
-            locationPathName = "Build/LinuxBuild/UnityApp.x86_64",
-            target           = BuildTarget.StandaloneLinux64,
-            options          = BuildOptions.None
-        };
-
-        BuildReport report = BuildPipeline.BuildPlayer(opts);
-
-        if (report.summary.result != BuildResult.Succeeded)
-        {
-            Debug.LogError("❌ Build Failed!");
-            EditorApplication.Exit(1);
+            Debug.Log($"✅ 빌드 성공: {summary.totalSize} bytes");
         }
-        else
+        else if (summary.result == BuildResult.Failed)
         {
-            Debug.Log("✅ Build Succeeded!");
+            Debug.LogError("❌ 빌드 실패");
+            EditorApplication.Exit(1); // Jenkins에서 실패로 인식
         }
     }
 }
