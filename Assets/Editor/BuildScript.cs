@@ -100,6 +100,9 @@
 //         Debug.Log("--- BuildScript.PerformBuild 종료 ---");
 //     }
 // }
+
+// Assets/Editor/BuildScript.cs
+
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
@@ -110,14 +113,15 @@ using System.Linq;
 public class BuildScript
 {
     // Jenkins에서 호출할 수 있도록 메소드 이름을 명확히 분리
+    public static void PerformBuildLinux()
+    {
+        // 빌드 타겟, 생성될 폴더 이름, 실행 파일 이름을 전달
+        PerformBuild(BuildTarget.StandaloneLinux64, "LinuxBuild", "GwangjuRun.x86_64");
+    }
+
     public static void PerformBuildAndroid()
     {
         PerformBuild(BuildTarget.Android, "AndroidBuild", "GwangjuRun.apk");
-    }
-
-    public static void PerformBuildLinux()
-    {
-        PerformBuild(BuildTarget.StandaloneLinux64, "LinuxBuild", "GwangjuRun.x86_64");
     }
 
     private static void PerformBuild(BuildTarget target, string buildFolderName, string buildFileName)
@@ -136,7 +140,7 @@ public class BuildScript
             return;
         }
 
-        // Jenkinsfile에서 지정한 빌드 출력 폴더 경로를 사용
+        // 빌드 출력 폴더 경로를 명확히 지정
         string buildOutputFolder = Path.Combine("Build", buildFolderName);
         
         Debug.Log($"[Build Info] 포함된 씬 개수: {enabledScenes.Length}");
