@@ -113,37 +113,36 @@ public class BuildScript
     {
         Debug.Log("--- BuildScript.PerformBuild 시작 ---");
 
-        // Build Settings에 등록되고 활성화된 씬 목록을 자동으로 가져옵니다.
         string[] enabledScenes = EditorBuildSettings.scenes
             .Where(s => s.enabled)
             .Select(s => s.path)
             .ToArray();
 
-        // 빌드할 씬이 하나도 없으면 오류를 내고 종료합니다.
         if (enabledScenes.Length == 0)
         {
             Debug.LogError("❌ 빌드할 씬이 없습니다. Unity 에디터의 Build Settings에서 씬을 추가하고 체크해주세요.");
-            EditorApplication.Exit(1); // Jenkins에서 실패로 인식
+            EditorApplication.Exit(1);
             return;
         }
 
-        // Jenkinsfile의 환경변수에서 빌드 경로를 가져옵니다.
-        string buildPath = Environment.GetEnvironmentVariable("BUILD_FILE");
+        // [수정] Jenkinsfile에서 빌드 '폴더' 경로를 가져옵니다.
+        string buildOutputFolder = Environment.GetEnvironmentVariable("BUILD_OUTPUT_DIR");
 
-        if (string.IsNullOrEmpty(buildPath))
+        if (string.IsNullOrEmpty(buildOutputFolder))
         {
-            Debug.LogWarning("⚠️ BUILD_FILE 환경변수를 찾을 수 없습니다. 기본 경로로 빌드합니다.");
-            buildPath = "Build/LinuxBuild/UnityApp.x86_64";
+            Debug.LogWarning("⚠️ BUILD_OUTPUT_DIR 환경변수를 찾을 수 없습니다. 기본 경로 'Build/LinuxBuild'로 빌드합니다.");
+            buildOutputFolder = "Build/LinuxBuild";
         }
         
         Debug.Log($"[Build Info] 포함된 씬 개수: {enabledScenes.Length}");
         Debug.Log($"[Build Info] 포함된 씬 목록: {string.Join(", ", enabledScenes)}");
-        Debug.Log($"[Build Info] 최종 빌드 경로: {buildPath}");
+        Debug.Log($"[Build Info] 최종 빌드 경로: {buildOutputFolder}");
 
         BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions
         {
             scenes = enabledScenes,
-            locationPathName = buildPath,
+            // [수정] locationPathName에 폴더 경로를 지정하면, Unity가 그 안에 실행 파일을 생성합니다.
+            locationPathName = buildOutputFolder + "/UnityApp.x86_64", 
             target = BuildTarget.StandaloneLinux64,
             options = BuildOptions.None
         };
