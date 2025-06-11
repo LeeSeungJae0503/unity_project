@@ -107,7 +107,7 @@ using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 using System;
-using System.IO;
+using System.IO; // <-- 이 using 구문이 컴파일 오류를 해결할 가능성이 높습니다!
 using System.Linq;
 
 public class BuildScript
@@ -115,9 +115,13 @@ public class BuildScript
     // Jenkins에서 호출할 유일한 빌드 메소드
     public static void PerformBuildLinux()
     {
-        Debug.Log("--- BuildScript.PerformBuild (Linux) 시작 ---");
+        PerformBuild(BuildTarget.StandaloneLinux64, "LinuxBuild", "GwangjuRun.x86_64");
+    }
 
-        // Build Settings에 등록되고 활성화된 씬 목록을 자동으로 가져옵니다.
+    private static void PerformBuild(BuildTarget target, string buildFolderName, string buildFileName)
+    {
+        Debug.Log($"--- BuildScript.PerformBuild ({target}) 시작 ---");
+
         string[] enabledScenes = EditorBuildSettings.scenes
             .Where(s => s.enabled)
             .Select(s => s.path)
@@ -126,17 +130,15 @@ public class BuildScript
         if (enabledScenes.Length == 0)
         {
             Debug.LogError("❌ 빌드할 씬이 없습니다. Build Settings에서 씬을 추가하고 체크해주세요.");
-            EditorApplication.Exit(1); // Jenkins에서 실패로 인식
+            EditorApplication.Exit(1);
             return;
         }
 
-        // 빌드 결과물이 저장될 폴더 경로를 명확히 지정합니다.
-        string buildOutputFolder = "Build/LinuxBuild";
+        string buildOutputFolder = Path.Combine("Build", buildFolderName);
         
         Debug.Log($"[Build Info] 포함된 씬 개수: {enabledScenes.Length}");
         Debug.Log($"[Build Info] 최종 빌드 경로: {buildOutputFolder}");
 
-        // 빌드 전 기존 폴더를 삭제하여 항상 깨끗한 상태에서 빌드합니다.
         if (Directory.Exists(buildOutputFolder))
         {
             Directory.Delete(buildOutputFolder, true);
@@ -146,12 +148,12 @@ public class BuildScript
         BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions
         {
             scenes = enabledScenes,
-            locationPathName = Path.Combine(buildOutputFolder, "GwangjuRun.x86_64"), // 폴더와 실행 파일 이름 조합
-            target = BuildTarget.StandaloneLinux64,
+            locationPathName = Path.Combine(buildOutputFolder, buildFileName),
+            target = target,
             options = BuildOptions.None
         };
 
-        Debug.Log("🔨 Unity 빌드 시작 (StandaloneLinux64)...");
+        Debug.Log($"🔨 Unity 빌드 시작 ({target})...");
 
         BuildReport report = BuildPipeline.BuildPlayer(buildPlayerOptions);
         BuildSummary summary = report.summary;
@@ -166,6 +168,6 @@ public class BuildScript
             EditorApplication.Exit(1);
         }
 
-        Debug.Log("--- BuildScript.PerformBuild (Linux) 종료 ---");
+        Debug.Log($"--- BuildScript.PerformBuild ({target}) 종료 ---");
     }
 }
