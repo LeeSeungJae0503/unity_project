@@ -107,12 +107,11 @@ using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 using System;
-using System.IO; // <-- 이 using 구문이 컴파일 오류를 해결할 가능성이 높습니다!
+using System.IO;
 using System.Linq;
 
 public class BuildScript
 {
-    // Jenkins에서 호출할 유일한 빌드 메소드
     public static void PerformBuildLinux()
     {
         PerformBuild(BuildTarget.StandaloneLinux64, "LinuxBuild", "GwangjuRun.x86_64");
@@ -164,10 +163,12 @@ public class BuildScript
         }
         else if (summary.result == BuildResult.Failed)
         {
-            Debug.LogError($"❌ 빌드 실패: 총 {summary.errorCount}개의 오류 발생");
+            // [수정] summary.errorCount 대신 일반적인 실패 메시지를 출력합니다.
+            Debug.LogError("❌ 빌드 실패: 자세한 내용은 빌드 로그를 확인하세요.");
             EditorApplication.Exit(1);
         }
 
         Debug.Log($"--- BuildScript.PerformBuild ({target}) 종료 ---");
     }
 }
+
