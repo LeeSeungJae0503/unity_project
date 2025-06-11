@@ -100,18 +100,29 @@
 //         Debug.Log("--- BuildScript.PerformBuild 종료 ---");
 //     }
 // }
-
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 using System;
+using System.IO;
 using System.Linq;
 
 public class BuildScript
 {
-    public static void PerformBuild()
+    // Jenkins에서 호출할 수 있도록 메소드 이름을 명확히 분리
+    public static void PerformBuildAndroid()
     {
-        Debug.Log("--- BuildScript.PerformBuild 시작 ---");
+        PerformBuild(BuildTarget.Android, "AndroidBuild", "GwangjuRun.apk");
+    }
+
+    public static void PerformBuildLinux()
+    {
+        PerformBuild(BuildTarget.StandaloneLinux64, "LinuxBuild", "GwangjuRun.x86_64");
+    }
+
+    private static void PerformBuild(BuildTarget target, string buildFolderName, string buildFileName)
+    {
+        Debug.Log($"--- BuildScript.PerformBuild ({target}) 시작 ---");
 
         string[] enabledScenes = EditorBuildSettings.scenes
             .Where(s => s.enabled)
@@ -120,34 +131,33 @@ public class BuildScript
 
         if (enabledScenes.Length == 0)
         {
-            Debug.LogError("❌ 빌드할 씬이 없습니다. Unity 에디터의 Build Settings에서 씬을 추가하고 체크해주세요.");
+            Debug.LogError("❌ 빌드할 씬이 없습니다. Build Settings에서 씬을 추가하고 체크해주세요.");
             EditorApplication.Exit(1);
             return;
         }
 
-        // [수정] Jenkinsfile에서 빌드 '폴더' 경로를 가져옵니다.
-        string buildOutputFolder = Environment.GetEnvironmentVariable("BUILD_OUTPUT_DIR");
-
-        if (string.IsNullOrEmpty(buildOutputFolder))
-        {
-            Debug.LogWarning("⚠️ BUILD_OUTPUT_DIR 환경변수를 찾을 수 없습니다. 기본 경로 'Build/LinuxBuild'로 빌드합니다.");
-            buildOutputFolder = "Build/LinuxBuild";
-        }
+        // Jenkinsfile에서 지정한 빌드 출력 폴더 경로를 사용
+        string buildOutputFolder = Path.Combine("Build", buildFolderName);
         
         Debug.Log($"[Build Info] 포함된 씬 개수: {enabledScenes.Length}");
-        Debug.Log($"[Build Info] 포함된 씬 목록: {string.Join(", ", enabledScenes)}");
         Debug.Log($"[Build Info] 최종 빌드 경로: {buildOutputFolder}");
+
+        // 빌드 전 기존 폴더 삭제하여 클린 빌드 보장
+        if (Directory.Exists(buildOutputFolder))
+        {
+            Directory.Delete(buildOutputFolder, true);
+        }
+        Directory.CreateDirectory(buildOutputFolder);
 
         BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions
         {
             scenes = enabledScenes,
-            // [수정] locationPathName에 폴더 경로를 지정하면, Unity가 그 안에 실행 파일을 생성합니다.
-            locationPathName = buildOutputFolder + "/UnityApp.x86_64", 
-            target = BuildTarget.StandaloneLinux64,
+            locationPathName = Path.Combine(buildOutputFolder, buildFileName), // 폴더와 파일 이름 조합
+            target = target,
             options = BuildOptions.None
         };
 
-        Debug.Log("🔨 Unity 빌드 시작 (Linux)...");
+        Debug.Log($"🔨 Unity 빌드 시작 ({target})...");
 
         BuildReport report = BuildPipeline.BuildPlayer(buildPlayerOptions);
         BuildSummary summary = report.summary;
@@ -162,6 +172,6 @@ public class BuildScript
             EditorApplication.Exit(1);
         }
 
-        Debug.Log("--- BuildScript.PerformBuild 종료 ---");
+        Debug.Log($"--- BuildScript.PerformBuild ({target}) 종료 ---");
     }
 }
