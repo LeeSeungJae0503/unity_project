@@ -103,6 +103,7 @@
 
 // Assets/Editor/BuildScript.cs
 
+// BuildScript.cs (최종 수정안 - 단순화 버전)
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
@@ -112,14 +113,9 @@ using System.Linq;
 
 public class BuildScript
 {
-    public static void PerformBuildLinux()
+    public static void PerformBuild()
     {
-        PerformBuild(BuildTarget.StandaloneLinux64, "LinuxBuild", "GwangjuRun.x86_64");
-    }
-
-    private static void PerformBuild(BuildTarget target, string buildFolderName, string buildFileName)
-    {
-        Debug.Log($"--- BuildScript.PerformBuild ({target}) 시작 ---");
+        Debug.Log("--- BuildScript.PerformBuild 시작 ---");
 
         string[] enabledScenes = EditorBuildSettings.scenes
             .Where(s => s.enabled)
@@ -133,26 +129,35 @@ public class BuildScript
             return;
         }
 
-        string buildOutputFolder = Path.Combine("Build", buildFolderName);
-        
-        Debug.Log($"[Build Info] 포함된 씬 개수: {enabledScenes.Length}");
-        Debug.Log($"[Build Info] 최종 빌드 경로: {buildOutputFolder}");
+        // [수정] Jenkinsfile에서 빌드 '폴더' 경로를 가져옵니다.
+        string buildOutputFolder = Environment.GetEnvironmentVariable("BUILD_OUTPUT");
 
+        if (string.IsNullOrEmpty(buildOutputFolder))
+        {
+            Debug.LogWarning("⚠️ BUILD_OUTPUT 환경변수를 찾을 수 없습니다. 기본 경로 'Build/LinuxBuild'로 빌드합니다.");
+            buildOutputFolder = "Build/LinuxBuild";
+        }
+
+        // 빌드 전 기존 폴더를 삭제하여 항상 깨끗한 상태에서 빌드합니다.
         if (Directory.Exists(buildOutputFolder))
         {
             Directory.Delete(buildOutputFolder, true);
         }
         Directory.CreateDirectory(buildOutputFolder);
+        
+        Debug.Log($"[Build Info] 포함된 씬 개수: {enabledScenes.Length}");
+        Debug.Log($"[Build Info] 최종 빌드 경로: {buildOutputFolder}");
 
         BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions
         {
             scenes = enabledScenes,
-            locationPathName = Path.Combine(buildOutputFolder, buildFileName),
-            target = target,
+            // [수정] locationPathName에 폴더 경로와 실행 파일 이름을 조합하여 전달합니다.
+            locationPathName = Path.Combine(buildOutputFolder, "GwangjuRun.x86_64"),
+            target = BuildTarget.StandaloneLinux64,
             options = BuildOptions.None
         };
 
-        Debug.Log($"🔨 Unity 빌드 시작 ({target})...");
+        Debug.Log($"🔨 Unity 빌드 시작 (StandaloneLinux64)...");
 
         BuildReport report = BuildPipeline.BuildPlayer(buildPlayerOptions);
         BuildSummary summary = report.summary;
@@ -161,14 +166,13 @@ public class BuildScript
         {
             Debug.Log($"✅ 빌드 성공: {summary.totalSize} bytes");
         }
-        else if (summary.result == BuildResult.Failed)
+        else
         {
-            // [수정] summary.errorCount 대신 일반적인 실패 메시지를 출력합니다.
+            // [수정] 호환성 문제가 있던 errorCount를 사용하지 않습니다.
             Debug.LogError("❌ 빌드 실패: 자세한 내용은 빌드 로그를 확인하세요.");
             EditorApplication.Exit(1);
         }
 
-        Debug.Log($"--- BuildScript.PerformBuild ({target}) 종료 ---");
+        Debug.Log("--- BuildScript.PerformBuild 종료 ---");
     }
 }
-
