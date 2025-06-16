@@ -102,8 +102,8 @@
 // }
 
 // Assets/Editor/BuildScript.cs
-
-// BuildScript.cs (최종 수정안 - 단순화 버전)
+ 
+// BuildScript.cs (최종 수정안 - 단순화 버전) test
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
